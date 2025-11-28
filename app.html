@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetaShield App - Clean Your Photos</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/tailwindcss-cdn@3.4.10/tailwindcss.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://unpkg.com/piexifjs@1.0.6/piexif.js"></script>
+    
+    <!-- Leaflet for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <link rel="stylesheet" href="styles/main.css">
+    
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              teal: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#14b8a6', 600: '#0d9488', 900: '#134e4a' },
+              slate: { 850: '#1e293b' }
+            }
+          }
+        }
+      }
+    </script>
+    <style type="text/tailwindcss" data-teda="tailwind-apply">
+        @layer components {
+            .btn-action { @apply flex items-center justify-center gap-2 w-full py-3 rounded-xl font-medium transition-all duration-200 active:scale-95; }
+            .btn-primary-action { @apply bg-teal-600 text-white shadow-lg shadow-teal-600/20 hover:bg-teal-700; }
+            .btn-secondary-action { @apply bg-white border border-slate-200 text-slate-700 hover:bg-slate-50; }
+        }
+    </style>
+</head>
+<body class="bg-[#F1F5F9] text-slate-900 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 h-16 flex-none z-30">
+        <div class="h-full px-6 flex items-center justify-between">
+            <a href="index.html" class="flex items-center gap-2 group">
+                <img src="logo.svg" class="w-7 h-7 text-teal-600 transition-transform group-hover:rotate-90 duration-500" alt="Logo">
+                <span class="font-bold tracking-tight text-lg text-slate-800">MetaShield</span>
+            </a>
+            <div class="flex items-center gap-4">
+                <span class="text-xs font-mono text-slate-400 hidden sm:block">CLIENT-SIDE SECURE MODE</span>
+                <a href="index.html" class="text-sm font-medium text-slate-500 hover:text-teal-600">Back to Home</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Interface -->
+    <main class="flex-1 flex overflow-hidden relative">
+        
+        <!-- Left: Upload & Preview -->
+        <section class="w-full md:w-1/2 lg:w-3/5 p-6 flex flex-col h-full overflow-y-auto bg-slate-50/50">
+            
+            <!-- Empty State / Drop Zone -->
+            <div id="empty-state" class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-3xl bg-white p-12 transition-all duration-300" >
+                <div id="drop-zone" class="text-center space-y-6 max-w-md pointer-events-auto cursor-pointer">
+                    <div class="w-24 h-24 bg-teal-50 rounded-full flex items-center justify-center mx-auto text-teal-500 mb-4">
+                        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-800">Drop your photo here</h2>
+                    <p class="text-slate-500">Supports JPEG/JPG formats. We parse metadata locally, so your photos never leave your device.</p>
+                    <button id="trigger-upload" class="btn-primary-action px-8 py-3 max-w-[200px] mx-auto rounded-full font-semibold transition-transform hover:scale-105">Select File</button>
+                </div>
+            </div>
+
+            <!-- Active State (Hidden initially) -->
+            <div id="active-state" class="hidden flex-col h-full gap-6">
+                <!-- Preview Card -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex-1 flex items-center justify-center relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNlN2U1ZTQiLz48L3N2Zz4=')] opacity-50"></div>
+                     <img id="preview-image" src="" alt="Preview" class="max-h-full max-w-full object-contain shadow-lg rounded-lg relative z-10">
+                     <div class="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg border border-white/20 shadow-lg flex justify-between items-center z-20">
+                        <span id="filename-display" class="text-sm font-medium text-slate-700 truncate">filename.jpg</span>
+                        <button onclick="location.reload()" class="text-xs text-rose-500 hover:text-rose-700 font-bold uppercase tracking-wider">Remove</button>
+                     </div>
+                </div>
+                
+                <!-- AI Advisor Section -->
+                <div class="bg-slate-900 rounded-2xl p-6 text-white relative overflow-hidden flex-none shadow-xl">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                    
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Privacy Risk Advisor
+                                </h3>
+                                <p class="text-slate-400 text-sm mt-1">Get an AI analysis of what this metadata reveals about you.</p>
+                            </div>
+                            <button id="btn-ai-analyze" class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium transition-colors">
+                                Analyze Risks
+                            </button>
+                        </div>
+
+                        <div id="ai-advisor" class="hidden mt-4 pt-4 border-t border-slate-700">
+                            <!-- Loading -->
+                            <div id="ai-loading-state" class="space-y-3">
+                                <div class="flex justify-between text-xs text-teal-400">
+                                    <span id="ai-progress-text">Initializing AI Engine...</span>
+                                    <span class="animate-pulse">Please wait</span>
+                                </div>
+                                <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                    <div id="ai-progress-bar" class="h-full bg-teal-500 w-0 transition-all duration-300"></div>
+                                </div>
+                            </div>
+
+                            <!-- Result -->
+                            <div id="ai-chat-interface" class="hidden">
+                                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                                    <p id="ai-response-text" class="text-sm text-slate-200 leading-relaxed font-light">Analyzing...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right: Metadata & Actions -->
+        <section class="w-full md:w-1/2 lg:w-2/5 bg-white border-l border-slate-200 flex flex-col h-full">
+            <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h2 class="text-xl font-bold text-slate-800">Metadata Report</h2>
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="System Ready"></div>
+            </div>
+
+            <!-- Scrollable List -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-8">
+                <!-- Map Preview -->
+                <div id="map-preview" class="w-full h-48 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden relative">
+                    <div class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+                         Waiting for image...
+                    </div>
+                </div>
+
+                <!-- Data List -->
+                <div id="metadata-list" class="space-y-2">
+                    <!-- Rows injected via JS -->
+                </div>
+            </div>
+
+            <!-- Bottom Actions -->
+            <div id="action-panel" class="p-6 border-t border-slate-200 bg-slate-50 opacity-50 pointer-events-none transition-opacity">
+                <div class="flex gap-4">
+                    <button id="clean-btn" class="btn-action btn-primary-action shadow-teal-500/25">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        Strip Metadata & Save
+                    </button>
+                </div>
+                <p class="text-center text-[10px] text-slate-400 mt-3">File is processed locally. Original remains untouched.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Hidden input -->
+    <input type="file" id="file-input" class="hidden" accept="image/jpeg, image/jpg">
+
+    <!-- Toasts -->
+    <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center pointer-events-none"></div>
+
+    <!-- Scripts -->
+    <script src="scripts/helpers.js"></script>
+    <script src="scripts/ai.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script src="scripts/main.js"></script>
+</body>
+</html>
