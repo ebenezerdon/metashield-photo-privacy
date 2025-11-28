@@ -173,6 +173,11 @@ window.App = window.App || {};
         
         // Add attribution manually cleanly
         $container.append('<div class="absolute bottom-1 right-2 text-[10px] text-slate-400 z-[400] bg-white/80 px-1 rounded">© OpenStreetMap</div>');
+        
+        // Fix for map rendering on mobile/resized layouts
+        setTimeout(() => {
+          if (this.mapInstance) this.mapInstance.invalidateSize();
+        }, 200);
       }
     },
 
